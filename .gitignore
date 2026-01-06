@@ -1,0 +1,31 @@
+# Environment files
+.env
+.env.*
+
+# Archives
+*.zip
+
+# Python
+__pycache__/
+venv/
+*.ipynb
+
+# IDE
+.vscode/
+
+# Project-specific
+Obsidian_GRC_Notes/
+.DS_Store
+
+# Security - AWS/Cloud credentials
+*.pem
+*.key
+credentials
+.aws/
+
+# Compliance reports (may contain sensitive findings)
+*_compliance_report.json
+*_report.json
+
+# Node.js (if not in subdirectory gitignore)
+node_modules/

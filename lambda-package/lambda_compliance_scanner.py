@@ -124,97 +124,100 @@ def lambda_handler(event, context):
     s3_client = boto3.client('s3')
     
     # Configuration - UPDATE THIS TO YOUR BUCKET NAME
-    REPORT_BUCKET = 'grc-compliance-reports'  # <<< CHANGE THIS
+    REPORT_BUCKET = 'grc-compliance-reports'  # UPDATE THIS TO YOUR BUCKET NAME
+
+    # Generate timestamped filename
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    report_key = f'reports/compliance-{timestamp}.json'
+
+
+    # Run all compliance checks
+    print("\n[1/4] Running IAM Security Checks...")
+    iam_report = run_iam_compliance_checks()
     
-    try:
-        # Run all compliance checks
-        print("\n[1/4] Running IAM Security Checks...")
-        iam_report = run_iam_compliance_checks()
-        
-        print("\n[2/4] Running S3 Security Checks...")
-        s3_report = run_s3_compliance_checks()
-        
-        print("\n[3/4] Running EC2 Security Group Checks...")
-        ec2_report = run_ec2_security_group_checks()
-        
-        print("\n[4/4] Running CloudTrail Checks...")
-        cloudtrail_report = run_cloudtrail_checks()
-        
-        # Combine all controls
-        all_controls = []
-        
-        if iam_report:
-            all_controls.extend(iam_report.get('controls', []))
-        
-        if s3_report:
-            all_controls.extend(s3_report.get('controls', []))
-        
-        if ec2_report:
-            all_controls.extend(ec2_report.get('controls', []))
-        
-        if cloudtrail_report:
-            all_controls.extend(cloudtrail_report.get('controls', []))
-        
-        # Calculate statistics
-        total_checks = len(all_controls)
-        passed = len([c for c in all_controls if c['status'] == 'passed'])
-        failed = len([c for c in all_controls if c['status'] == 'failed'])
-        warnings = len([c for c in all_controls if c['status'] == 'warning'])
-        
-        overall_score = round((passed / total_checks * 100), 2) if total_checks > 0 else 0
-        
-        # Calculate framework scores
-        framework_scores = calculate_framework_scores(all_controls)
-        
-        # Identify critical findings
-        critical_findings = identify_critical_findings(all_controls)
-        
-        # Print summary to CloudWatch logs
-        print("\n" + "=" * 80)
-        print("📊 SCAN SUMMARY")
-        print("=" * 80)
-        print(f"Total Checks: {total_checks}")
-        print(f"✅ Passed: {passed}")
-        print(f"❌ Failed: {failed}")
-        print(f"⚠️ Warnings: {warnings}")
-        print(f"🎯 Overall Score: {overall_score}%")
-        print(f"🚨 Critical Findings: {len(critical_findings)}")
-        
-        print("\n📋 Framework Scores:")
-        for fw in framework_scores:
-            print(f"  {fw['name']}: {fw['score']}% ({fw['passed']}/{fw['total']})")
-        
-        # Build comprehensive report
-        comprehensive_report = {
-            'scan_metadata': {
-                'scan_time': datetime.now().isoformat(),
-                'scanner_version': '2.0',
-                'execution_id': request_id,
-                'aws_account': boto3.client('sts').get_caller_identity()['Account'],
-                'aws_region': context.invoked_function_arn.split(':')[3]
-            },
-            'executive_summary': {
-                'overall_score': overall_score,
-                'total_checks': total_checks,
-                'passed': passed,
-                'failed': failed,
-                'warnings': warnings,
-                'risk_level': 'LOW' if overall_score >= 80 else 'MEDIUM' if overall_score >= 60 else 'HIGH'
-            },
-            'framework_scores': framework_scores,
-            'critical_findings': critical_findings,
-            'detailed_controls': all_controls,
-            'individual_reports': {
-                'iam': iam_report,
-                's3': s3_report,
-                'ec2': ec2_report,
-                'cloudtrail': cloudtrail_report
-            }
+    print("\n[2/4] Running S3 Security Checks...")
+    s3_report = run_s3_compliance_checks()
+    
+    print("\n[3/4] Running EC2 Security Group Checks...")
+    ec2_report = run_ec2_security_group_checks()
+    
+    print("\n[4/4] Running CloudTrail Checks...")
+    cloudtrail_report = run_cloudtrail_checks()
+    
+    # Combine all controls
+    all_controls = []
+    
+    if iam_report:
+        all_controls.extend(iam_report.get('controls', []))
+    
+    if s3_report:
+        all_controls.extend(s3_report.get('controls', []))
+    
+    if ec2_report:
+        all_controls.extend(ec2_report.get('controls', []))
+    
+    if cloudtrail_report:
+        all_controls.extend(cloudtrail_report.get('controls', []))
+    
+    # Calculate statistics
+    total_checks = len(all_controls)
+    passed = len([c for c in all_controls if c['status'] == 'passed'])
+    failed = len([c for c in all_controls if c['status'] == 'failed'])
+    warnings = len([c for c in all_controls if c['status'] == 'warning'])
+    
+    overall_score = round((passed / total_checks * 100), 2) if total_checks > 0 else 0
+    
+    # Calculate framework scores
+    framework_scores = calculate_framework_scores(all_controls)
+    
+    # Identify critical findings
+    critical_findings = identify_critical_findings(all_controls)
+    
+    # Print summary to CloudWatch logs
+    print("\n" + "=" * 80)
+    print("📊 SCAN SUMMARY")
+    print("=" * 80)
+    print(f"Total Checks: {total_checks}")
+    print(f"✅ Passed: {passed}")
+    print(f"❌ Failed: {failed}")
+    print(f"⚠️ Warnings: {warnings}")
+    print(f"🎯 Overall Score: {overall_score}%")
+    print(f"🚨 Critical Findings: {len(critical_findings)}")
+    
+    print("\n📋 Framework Scores:")
+    for fw in framework_scores:
+        print(f"  {fw['name']}: {fw['score']}% ({fw['passed']}/{fw['total']})")
+    
+    # Build comprehensive report
+    comprehensive_report = {
+        'scan_metadata': {
+            'scan_time': datetime.now().isoformat(),
+            'scanner_version': '2.0',
+            'execution_id': request_id,
+            'aws_account': boto3.client('sts').get_caller_identity()['Account'],
+            'aws_region': context.invoked_function_arn.split(':')[3]
+        },
+        'executive_summary': {
+            'overall_score': overall_score,
+            'total_checks': total_checks,
+            'passed': passed,
+            'failed': failed,
+            'warnings': warnings,
+            'risk_level': 'LOW' if overall_score >= 80 else 'MEDIUM' if overall_score >= 60 else 'HIGH'
+        },
+        'framework_scores': framework_scores,
+        'critical_findings': critical_findings,
+        'detailed_controls': all_controls,
+        'individual_reports': {
+            'iam': iam_report,
+            's3': s3_report,
+            'ec2': ec2_report,
+            'cloudtrail': cloudtrail_report
         }
-        
+    }
+
+    try:
         # Save report to S3
-        report_key = f'reports/compliance-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json'
-        
         s3_client.put_object(
             Bucket=REPORT_BUCKET,
             Key=report_key,
@@ -228,6 +231,23 @@ def lambda_handler(event, context):
         )
         
         print(f"\n✅ Report saved to: s3://{REPORT_BUCKET}/{report_key}")
+
+        # ALSO save as "latest.json" - this always points to the newest report
+        latest_key = 'reports/latest.json'
+        s3_client.put_object(
+            Bucket=REPORT_BUCKET,
+            Key=latest_key,
+            Body=json.dumps(comprehensive_report, indent=2),
+            ContentType='application/json',
+            Metadata={
+                'scan-time': datetime.now().isoformat(),
+                'overall-score': str(overall_score),
+                'critical-findings': str(len(critical_findings)),
+                'original-report': report_key  # Track which timestamped report this came from
+            }
+        )
+        
+        print(f"✅ Latest report pointer updated: s3://{REPORT_BUCKET}/{latest_key}")
         print("=" * 80)
         
         # Return success response

@@ -1,210 +1,72 @@
-// ==================== IMPORTS ====================
 import React, { useState, useEffect } from 'react';
-// useState: Manages data that can change (like loading state, selected framework)
-// useEffect: Runs code when component loads (like fetching data)
-
 import { Shield, AlertTriangle, CheckCircle, TrendingUp, Filter } from 'lucide-react';
-// Icons we'll use in the UI
-
 import type { ComplianceReport, Framework, Control } from '../types/compliance';
-// Import our TypeScript types - now TypeScript knows the data structure!
-
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-// Chart library for visualizing framework scores
-
 import { fetchLatestReport, getMockReport } from '../services/s3Service';
-// ==================== COMPONENT DEFINITION ====================
-// React.FC means "React Functional Component"
-// This is the modern way to write React components (hooks-based)
+
 const ComplianceDashboard: React.FC = () => {
   
-  // ==================== STATE MANAGEMENT ====================
-  // "State" is data that can change and triggers re-renders
-  
-  // Store the full compliance report
-  // useState<Type> tells TypeScript what type this state will be
-  // | null means "it could be null initially"
+  // STATE MANAGEMENT
   const [report, setReport] = useState<ComplianceReport | null>(null);
-  
-  // Track which framework filter is selected (default: "All")
   const [selectedFramework, setSelectedFramework] = useState<string>('All');
-  
-  // Track if we're loading data
   const [loading, setLoading] = useState<boolean>(true);
-  
-  //error handling
   const [error, setError] = useState<string | null>(null);
+  const [usingMockData, setUsingMockData] = useState<boolean>(false);
   
-  // ==================== LOAD DATA ON MOUNT ====================
-  // useEffect with empty array [] runs ONCE when component first renders
-  // Think of it like a constructor or "componentDidMount" in class components
-  // useEffect(() => {
-  //   loadMockData();
-  // }, []);
-
-  useEffect(() => {
-  loadData();
-}, []);
   
+  // LOAD DATA FROM S3
   const loadData = async () => {
     try {
-      // Try to fetch real data from S3
-      console.log('Attempting to load real S3 data...');
+      setLoading(true);
+      setError(null);
+      setUsingMockData(false);
+      
+      console.log('🚀 Loading compliance data from S3...');
+      
       const realData = await fetchLatestReport();
+      
       setReport(realData);
       setLoading(false);
-      console.log('✅ Loaded real data from S3!');
-    } catch (error) {
-      console.warn('⚠️ Could not load S3 data, using mock data instead');
-      console.error('Error details:', error);
       
-      // Fallback to mock data if S3 fails
+      console.log('✅ Dashboard loaded with REAL S3 data!');
+      
+    } catch (err) {
+      console.error('⚠️ Failed to load S3 data:', err);
+      
+      setError('Could not load data from S3. Using mock data instead.');
+      setUsingMockData(true);
+      
+      // Fallback to mock data
       setTimeout(() => {
+        console.log('📝 Loading mock data as fallback...');
         const mockData = getMockReport();
         setReport(mockData);
         setLoading(false);
-        console.log('✅ Loaded mock data');
       }, 500);
     }
   };
-
-  // ==================== MOCK DATA FUNCTION ====================
-  // This simulates fetching data from an API
-  // Later we'll replace this with real S3/API calls
-  const loadMockData = () => {
-    // Simulate network delay (like a real API call)
-    setTimeout(() => {
-      // Create a mock report that matches our ComplianceReport type
-      const mockReport: ComplianceReport = {
-        scan_metadata: {
-          scan_time: new Date().toISOString(),
-          scanner_version: '2.0',
-          execution_id: 'mock-execution-123',
-          aws_account: '123456789012'
-        },
-        executive_summary: {
-          overall_score: 73.5,
-          total_checks: 34,
-          passed: 25,
-          failed: 5,
-          warnings: 4,
-          risk_level: 'MEDIUM'
-        },
-        framework_scores: [
-          { name: 'SOC 2', score: 78, total: 20, passed: 15, failed: 3, warnings: 2 },
-          { name: 'ISO 27001', score: 72, total: 25, passed: 18, failed: 5, warnings: 2 },
-          { name: 'NIST CSF', score: 70, total: 23, passed: 16, failed: 5, warnings: 2 },
-          { name: 'PCI-DSS', score: 80, total: 15, passed: 12, failed: 2, warnings: 1 },
-          { name: 'HIPAA', score: 75, total: 12, passed: 9, failed: 2, warnings: 1 }
-        ],
-        critical_findings: [
-          {
-            severity: 'high',
-            control_id: 'S3-002-data-bucket',
-            control_name: 'Public Access Block',
-            framework: 'SOC 2',
-            details: 'Bucket allows public access - data breach risk!',
-            resource: 'data-bucket',
-            timestamp: new Date().toISOString()
-          },
-          {
-            severity: 'high',
-            control_id: 'EC2-SG-001-web-sg',
-            control_name: 'Security Group Rules',
-            framework: 'SOC 2',
-            details: 'Allows SSH from anywhere (0.0.0.0/0 on port 22)',
-            resource: 'web-sg (sg-12345678)',
-            timestamp: new Date().toISOString()
-          }
-        ],
-        detailed_controls: [
-          {
-            control_id: 'IAM-001',
-            control_name: 'MFA Enforcement',
-            status: 'passed',
-            frameworks: ['SOC 2', 'ISO 27001', 'NIST CSF', 'PCI-DSS'],
-            framework: 'SOC 2',
-            details: 'Root account has MFA enabled',
-            timestamp: new Date().toISOString()
-          },
-          {
-            control_id: 'IAM-004',
-            control_name: 'Password Policy',
-            status: 'warning',
-            frameworks: ['SOC 2', 'ISO 27001', 'NIST CSF', 'HIPAA'],
-            framework: 'NIST CSF',
-            details: 'Password length < 14 characters',
-            timestamp: new Date().toISOString()
-          },
-          {
-            control_id: 'S3-001-prod-data',
-            control_name: 'Bucket Encryption',
-            status: 'failed',
-            frameworks: ['SOC 2', 'ISO 27001', 'HIPAA', 'PCI-DSS'],
-            framework: 'ISO 27001',
-            details: 'No encryption configured',
-            timestamp: new Date().toISOString(),
-            bucket: 'prod-data'
-          },
-          {
-            control_id: 'S3-002-data-bucket',
-            control_name: 'Public Access Block',
-            status: 'failed',
-            frameworks: ['SOC 2', 'ISO 27001', 'NIST CSF'],
-            framework: 'SOC 2',
-            details: 'Public access not fully blocked',
-            timestamp: new Date().toISOString(),
-            bucket: 'data-bucket'
-          },
-          {
-            control_id: 'EC2-SG-001-web-sg',
-            control_name: 'Security Group Inbound Rules',
-            status: 'failed',
-            frameworks: ['SOC 2', 'ISO 27001', 'NIST CSF'],
-            framework: 'SOC 2',
-            details: 'Allows access from 0.0.0.0/0 on port 22',
-            timestamp: new Date().toISOString(),
-            resource: 'web-sg (sg-12345678)'
-          },
-          {
-            control_id: 'TRAIL-001-main',
-            control_name: 'CloudTrail Configuration',
-            status: 'passed',
-            frameworks: ['SOC 2', 'ISO 27001', 'NIST CSF', 'HIPAA'],
-            framework: 'SOC 2',
-            details: 'CloudTrail is enabled and properly configured',
-            timestamp: new Date().toISOString(),
-            resource: 'main-trail'
-          }
-        ]
-      };
-      
-      // Update state with the mock data
-      setReport(mockReport);
-      setLoading(false);  // Stop showing loading spinner
-    }, 1000);  // 1 second delay to simulate API call
-  };
   
   
-  // ==================== FILTER FUNCTION ====================
-  // Returns controls filtered by selected framework
+  useEffect(() => {
+    loadData();
+  }, []);
+  
+  
+  // FILTER CONTROLS BY FRAMEWORK
   const getFilteredControls = (): Control[] => {
-    if (!report) return [];  // Safety check - if no report, return empty array
+    if (!report) return [];
     
     if (selectedFramework === 'All') {
-      return report.detailed_controls;  // Show all controls
+      return report.detailed_controls;
     }
     
-    // Filter controls that include the selected framework
     return report.detailed_controls.filter(control => 
       control.frameworks.includes(selectedFramework)
     );
   };
   
   
-  // ==================== HELPER FUNCTIONS ====================
-  // These are pure functions that just transform data for display
-  
+  // HELPER FUNCTIONS
   const getRiskColor = (level: string): string => {
     switch(level) {
       case 'LOW': return 'text-green-600';
@@ -237,36 +99,73 @@ const ComplianceDashboard: React.FC = () => {
   };
   
   
-  // ==================== CONDITIONAL RENDERING ====================
-  // Show different UI based on state
-  
+  // LOADING STATE
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600 text-lg">Loading compliance data...</p>
+          <p className="text-gray-600 text-lg">Loading compliance data from S3...</p>
         </div>
       </div>
     );
   }
   
+  
+  // ERROR STATE
   if (!report) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-red-600 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">Failed to load compliance data</p>
+          <p className="text-gray-600 text-lg mb-4">Failed to load compliance data</p>
+          <button 
+            onClick={loadData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
   }
   
   
-  // ==================== MAIN UI ====================
+  // MAIN DASHBOARD UI
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
+        
+        {/* DATA SOURCE INDICATOR */}
+        {usingMockData && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertTriangle className="h-5 w-5 text-yellow-400 mr-3" />
+                <p className="text-sm text-yellow-700">
+                  <strong>Mock Data:</strong> Could not load from S3. Displaying sample data.
+                </p>
+              </div>
+              <button 
+                onClick={loadData}
+                className="text-sm text-yellow-700 underline hover:text-yellow-900"
+              >
+                Retry S3
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {!usingMockData && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
+              <p className="text-sm text-green-700">
+                <strong>Live Data:</strong> Loaded from S3 • Scan Time: {new Date(report.scan_metadata.scan_time).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* HEADER */}
         <div className="mb-8">
@@ -284,7 +183,7 @@ const ComplianceDashboard: React.FC = () => {
               </p>
             </div>
             
-            {/* FRAMEWORK FILTER DROPDOWN */}
+            {/* FRAMEWORK FILTER */}
             <div className="flex items-center gap-3">
               <Filter className="w-5 h-5 text-gray-600" />
               <select
@@ -302,10 +201,9 @@ const ComplianceDashboard: React.FC = () => {
         </div>
         
         
-        {/* EXECUTIVE SUMMARY CARDS - 4 cards in a row */}
+        {/* EXECUTIVE SUMMARY CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           
-          {/* Card 1: Overall Score */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-600">
             <div className="flex items-center justify-between">
               <div>
@@ -321,7 +219,6 @@ const ComplianceDashboard: React.FC = () => {
             </p>
           </div>
           
-          {/* Card 2: Passed Controls */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-600">
             <div className="flex items-center justify-between">
               <div>
@@ -337,7 +234,6 @@ const ComplianceDashboard: React.FC = () => {
             </p>
           </div>
           
-          {/* Card 3: Failed Controls */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-600">
             <div className="flex items-center justify-between">
               <div>
@@ -353,7 +249,6 @@ const ComplianceDashboard: React.FC = () => {
             </p>
           </div>
           
-          {/* Card 4: Warnings */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-600">
             <div className="flex items-center justify-between">
               <div>
@@ -372,11 +267,10 @@ const ComplianceDashboard: React.FC = () => {
         </div>
         
         
-        {/* FRAMEWORK SCORES SECTION */}
+        {/* FRAMEWORK SCORES */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Framework Compliance Scores</h2>
           
-          {/* Bar Chart */}
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={report.framework_scores}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -388,7 +282,6 @@ const ComplianceDashboard: React.FC = () => {
             </BarChart>
           </ResponsiveContainer>
           
-          {/* Framework Details Table */}
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -436,10 +329,10 @@ const ComplianceDashboard: React.FC = () => {
         </div>
         
         
-        {/* TWO COLUMN LAYOUT */}
+        {/* TWO COLUMNS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* LEFT COLUMN: Critical Findings */}
+          {/* CRITICAL FINDINGS */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -451,7 +344,6 @@ const ComplianceDashboard: React.FC = () => {
                 <div className="text-center py-8">
                   <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-2" />
                   <p className="text-gray-500">No critical findings! 🎉</p>
-                  <p className="text-sm text-gray-400 mt-1">All critical controls are passing</p>
                 </div>
               ) : (
                 report.critical_findings.map((finding, index) => (
@@ -482,7 +374,7 @@ const ComplianceDashboard: React.FC = () => {
           </div>
           
           
-          {/* RIGHT COLUMN: Control Status List */}
+          {/* CONTROL STATUS */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Control Status

@@ -26,6 +26,7 @@ credentials
 # Compliance reports (may contain sensitive findings)
 *_compliance_report.json
 *_report.json
+response.json
 
 # Node.js (if not in subdirectory gitignore)
 node_modules/

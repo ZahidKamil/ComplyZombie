@@ -51,7 +51,7 @@ export interface ComplianceReport {
 // ==================== CRITICAL FINDING ====================
 // High-priority security issues that need immediate attention
 export interface CriticalFinding {
-  severity: 'high' | 'medium' | 'low';
+  severity: 'critical' |'high' | 'medium' | 'low';
   control_id: string;
   control_name: string;
   framework: string;
